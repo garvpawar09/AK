@@ -8,6 +8,7 @@ import CameraScreen from './components/CameraScreen';
 import PreviewScreen from './components/PreviewScreen';
 import ReviewScreen from './components/ReviewScreen';
 import HistoryScreen from './components/HistoryScreen';
+import ProfileScreen from './components/ProfileScreen';
 import { analyzeImage, lookupProduct } from './services/mockApi';
 
 export default function App() {
@@ -15,11 +16,13 @@ export default function App() {
   const [capturedImage, setCapturedImage] = useState(null); // Used if we want to preview, but for barcode we might skip preview 
   const [reviewData, setReviewData] = useState(null);
   const [history, setHistory] = useState([]);
+  const [userPreferences, setUserPreferences] = useState({});
   const [notFoundAlert, setNotFoundAlert] = useState(null); // String (barcode) or null
 
   // Load History on Mount
   useEffect(() => {
     loadHistory();
+    loadPreferences();
   }, []);
 
   const loadHistory = async () => {
@@ -28,6 +31,22 @@ export default function App() {
       if (jsonValue != null) {
         setHistory(JSON.parse(jsonValue));
       }
+    } catch (e) { console.error(e); }
+  };
+
+  const loadPreferences = async () => {
+    try {
+      const jsonValue = await AsyncStorage.getItem('@user_preferences');
+      if (jsonValue != null) {
+        setUserPreferences(JSON.parse(jsonValue));
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const savePreferences = async (newPrefs) => {
+    try {
+      setUserPreferences(newPrefs);
+      await AsyncStorage.setItem('@user_preferences', JSON.stringify(newPrefs));
     } catch (e) { console.error(e); }
   };
 
@@ -43,7 +62,8 @@ export default function App() {
 
   const handleScan = async ({ type, data }) => {
     // 1. Fetch Product Data based on Barcode
-    const productData = await lookupProduct(data);
+    // Pass userPreferences to lookup logic if needed, or just for the AI step later
+    const productData = await lookupProduct(data, userPreferences); // Updated signature anticipating AI
 
     if (!productData) {
       alert(`Product not found (Barcode: ${data})`);
@@ -107,11 +127,15 @@ export default function App() {
     }
 
     if (currentTab === 'review') {
-      return <ReviewScreen reviewData={reviewData} onUpdate={handleReviewUpdate} />;
+      return <ReviewScreen reviewData={reviewData} onUpdate={handleReviewUpdate} userPreferences={userPreferences} />;
     }
 
     if (currentTab === 'history') {
       return <HistoryScreen history={history} onSelect={handleHistorySelect} onDelete={handleDeleteHistory} />;
+    }
+
+    if (currentTab === 'profile') {
+      return <ProfileScreen preferences={userPreferences} onUpdateKeywords={savePreferences} />;
     }
 
     return null;
@@ -145,6 +169,12 @@ export default function App() {
           icon="time"
           active={currentTab === 'history'}
           onPress={() => setCurrentTab('history')}
+        />
+        <TabButton
+          name="profile"
+          icon="person"
+          active={currentTab === 'profile'}
+          onPress={() => setCurrentTab('profile')}
         />
       </View>
 

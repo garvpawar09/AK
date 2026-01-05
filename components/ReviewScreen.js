@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, View, Text, Image, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, PanResponder, Animated, Dimensions, BackHandler } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { chatWithAI } from '../services/aiService';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const IMAGE_HEIGHT = SCREEN_HEIGHT * 0.45;
 
-export default function ReviewScreen({ reviewData, onUpdate }) {
+export default function ReviewScreen({ reviewData, onUpdate, userPreferences }) {
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState('');
     const [showChat, setShowChat] = useState(false);
@@ -138,7 +139,7 @@ export default function ReviewScreen({ reviewData, onUpdate }) {
         return "Moderate, consume with caution";
     };
 
-    const sendMessage = () => {
+    const sendMessage = async () => {
         if (!input.trim()) return;
 
         const newMsg = { text: input, isUser: true };
@@ -150,14 +151,15 @@ export default function ReviewScreen({ reviewData, onUpdate }) {
         const updatedData = { ...reviewData, messages: updatedMessages };
         onUpdate(updatedData);
 
-        setTimeout(() => {
-            const replyMsg = { text: "The product contains " + ingredient + ". " + reason, isUser: false };
-            const finalMessages = [...updatedMessages, replyMsg];
-            setMessages(finalMessages);
+        // Call AI
+        const responseText = await chatWithAI(reviewData, userPreferences, updatedMessages, newMsg.text);
 
-            const finalData = { ...reviewData, messages: finalMessages };
-            onUpdate(finalData);
-        }, 1000);
+        const replyMsg = { text: responseText, isUser: false };
+        const finalMessages = [...updatedMessages, replyMsg];
+        setMessages(finalMessages);
+
+        const finalData = { ...reviewData, messages: finalMessages };
+        onUpdate(finalData);
     };
 
     const handleKnowWhy = () => {
@@ -202,10 +204,17 @@ export default function ReviewScreen({ reviewData, onUpdate }) {
                         {/* Status Card */}
                         <View style={[styles.statusCard, { borderColor: statusColor }]}>
                             <View style={styles.cardContent}>
-                                <Text style={styles.sketchTitle}>{getCardText(status)}</Text>
+                                <View style={styles.cardHeaderRow}>
+                                    <Text style={[styles.sketchTitle, { flex: 1, marginBottom: 0 }]}>{getCardText(status)}</Text>
+                                    <Speedometer score={reviewData.health_score || 50} color={statusColor} />
+                                </View>
 
                                 <View style={styles.rowBetween}>
-                                    <Text style={styles.reasonText}>Contains: {ingredient}</Text>
+                                    <Text style={styles.reasonText}>
+                                        {reviewData.harmful_ingredients && reviewData.harmful_ingredients !== "None"
+                                            ? `Harmful Ingredients: ${reviewData.harmful_ingredients}`
+                                            : "Contains: No harmful ingredients found"}
+                                    </Text>
                                     <TouchableOpacity style={[styles.pillButton, { borderColor: statusColor }]} onPress={handleKnowWhy}>
                                         <Text style={[styles.pillText, { color: statusColor }]}>know why</Text>
                                     </TouchableOpacity>
@@ -436,15 +445,18 @@ const styles = StyleSheet.create({
         borderTopWidth: 1,
         borderTopColor: '#333',
         paddingTop: 10,
+        paddingBottom: Platform.OS === 'ios' ? 20 : 10, // Extra padding for safety
+        backgroundColor: '#111',
     },
     input: {
         flex: 1,
-        backgroundColor: '#222',
+        backgroundColor: '#FFFFFF', // White background
         borderRadius: 20,
         paddingHorizontal: 15,
-        paddingVertical: 10,
-        color: 'white',
+        paddingVertical: 12, // More vertical padding
+        color: '#000000', // Black text
         marginRight: 10,
+        fontSize: 16,
     },
     sendButton: {
         backgroundColor: '#2196F3',
@@ -453,5 +465,65 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         alignItems: 'center',
         justifyContent: 'center',
-    }
+    },
+    cardHeaderRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+    },
 });
+
+const Speedometer = ({ score, color }) => {
+    // Score 0-100
+    // Angle: -90 (0) to 90 (100)
+    const rotation = (score / 100) * 180 - 90;
+
+    return (
+        <View style={{ alignItems: 'center', marginLeft: 10 }}>
+            <View style={{
+                width: 60,
+                height: 30, // Half circle
+                borderTopLeftRadius: 30,
+                borderTopRightRadius: 30,
+                backgroundColor: 'transparent',
+                borderWidth: 4,
+                borderColor: color,
+                borderBottomWidth: 0,
+                overflow: 'hidden',
+                position: 'relative',
+            }}>
+                {/* Needle: Height 60, Centered at bottom (top of container + 30) 
+                    Actually easier: 
+                    Needle Height 60.
+                    Bottom: -30.
+                    Left: (60/2) - (4/2) = 28.
+                    Pivot is center of needle which aligns with bottom of semi-circle.
+                */}
+                <View style={{
+                    position: 'absolute',
+                    bottom: -30,
+                    left: 28,
+                    width: 4,
+                    height: 60,
+                    // backgroundColor: 'transparent', // Full needle container
+                    // We only want the top half to be visible? 
+                    // Since container has overflow hidden, the bottom half (which sticks out) is hidden ONLY if it was inside? 
+                    // Wait, absolute positioning outside container bounds with overflow hidden clipps it.
+                    // If bottom is -30, the center is at 0 (relative to bottom edge).
+                    // This puts the needle center at the bottom edge. Perfect.
+                    transform: [
+                        { rotate: `${rotation}deg` }
+                    ],
+                }}>
+                    {/* The visible part of the needle (top half) */}
+                    <View style={{ flex: 1, backgroundColor: 'white', borderTopLeftRadius: 2, borderTopRightRadius: 2 }} />
+                    {/* The invisible part (bottom half) to force center pivot */}
+                    <View style={{ flex: 1, backgroundColor: 'transparent' }} />
+                </View>
+            </View>
+            <Text style={{ color: color, fontWeight: 'bold', fontSize: 12, marginTop: 4 }}>
+                {score}/100
+            </Text>
+        </View>
+    );
+};

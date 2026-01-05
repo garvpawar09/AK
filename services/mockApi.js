@@ -1,33 +1,31 @@
-export const analyzeImage = async (imageUri) => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            // Randomly return YES, NO, or MODERATE
-            const statuses = ['YES', 'NO', 'MODERATE'];
-            const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
+import { analyzeFoodWithAI } from './aiService';
 
-            let result = {
-                status: randomStatus,
-                ingredient: "Unknown",
-                reason: "Analysis complete."
-            };
+// Fallback mock analysis if AI fails or for testing
+const mockAnalyze = (product, userPreferences) => {
+    // Simple logic: if vegan and product has milk -> NO
+    const ingredients = (product.ingredients_text || "").toLowerCase();
+    const { diets = [] } = userPreferences || {};
 
-            if (randomStatus === 'NO') {
-                result.ingredient = "High Fructose Corn Syrup";
-                result.reason = "High sugar content linked to health issues.";
-            } else if (randomStatus === 'YES') {
-                result.ingredient = "Natural Ingredients";
-                result.reason = "Product appears safe for consumption.";
-            } else {
-                result.ingredient = "Preservatives (E202)";
-                result.reason = "Safe in small quantities.";
-            }
+    let status = 'YES';
+    let reason = 'Safe to consume based on your profile.';
 
-            resolve(result);
-        }, 2000); // 2 second delay
-    });
+    if (diets.includes('vegan')) {
+        if (ingredients.includes('milk') || ingredients.includes('egg') || ingredients.includes('honey')) {
+            status = 'NO';
+            reason = 'Contains animal products (milk/egg/honey).';
+        }
+    }
+
+    return {
+        status,
+        ingredient: product.ingredients_text || "Unknown Ingredients",
+        reason,
+        health_score: status === 'YES' ? 90 : (status === 'MODERATE' ? 50 : 20),
+        harmful_ingredients: status === 'NO' ? "Contains allergens/unwanted ingredients" : "None"
+    };
 };
 
-export const lookupProduct = async (barcodeData) => {
+export const lookupProduct = async (barcodeData, userPreferences) => {
     try {
         console.log(`Fetching data for barcode: ${barcodeData}`);
         const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcodeData}.json`, {
@@ -40,38 +38,55 @@ export const lookupProduct = async (barcodeData) => {
         if (data.status === 1) {
             const product = data.product;
 
-            // Map Nutri-Score to Status
-            // a, b -> YES
-            // c -> MODERATE
-            // d, e -> NO
-            // unknown -> MODERATE
-            const grade = product.nutriscore_grade ? product.nutriscore_grade.toLowerCase() : 'unknown';
-            let status = 'MODERATE';
-            let reason = 'Nutritional data unavailable.';
+            // Debugging: Log available keys to help diagnose missing ingredients
+            console.log("Product keys:", Object.keys(product).filter(k => k.includes('ingredient')));
 
-            if (['a', 'b'].includes(grade)) {
-                status = 'YES';
-                reason = 'Good nutritional quality (Nutri-Score ' + grade.toUpperCase() + ').';
-            } else if (grade === 'c') {
-                status = 'MODERATE';
-                reason = 'Moderate nutritional quality.';
-            } else if (['d', 'e'].includes(grade)) {
-                status = 'NO';
-                reason = 'Poor nutritional quality (Nutri-Score ' + grade.toUpperCase() + ').';
+            let ingredient = product.ingredients_text_en || product.ingredients_text;
+
+            // Fallback: Try to construct from ingredients array if text is missing
+            if (!ingredient && product.ingredients && Array.isArray(product.ingredients)) {
+                console.log("Constructing ingredients from array...");
+                ingredient = product.ingredients.map(i => i.text).join(", ");
             }
 
-            // Extract Ingredients
-            const ingredient = product.ingredients_text_en || product.ingredients_text || "Ingredients not found";
+            if (!ingredient) {
+                ingredient = "Ingredients not found";
+            }
 
-            // Extract Image
             const imageUri = product.image_url || product.image_front_url || "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80";
+            const nutritionImageUri = product.image_nutrition_url || product.image_nutrition_small_url || imageUri;
+            const productName = product.product_name || "Unknown Product";
+
+            const productData = {
+                productName,
+                ingredient,
+                imageUri,
+                nutritionImageUri,
+                missingIngredients: ingredient === "Ingredients not found"
+            };
+
+            // Call AI Service
+            console.log("Calling Gemini AI service");
+
+            let aiResult = null;
+
+            try {
+                aiResult = await analyzeFoodWithAI(productData, userPreferences);
+
+                if (!aiResult) {
+                    throw new Error("Gemini returned null");
+                }
+            } catch (e) {
+                console.log("Gemini AI failed, falling back to local logic.", e);
+                aiResult = mockAnalyze(product, userPreferences);
+            }
+
 
             return {
-                status,
-                ingredient: ingredient.length > 100 ? ingredient.substring(0, 100) + "..." : ingredient,
-                reason,
                 imageUri,
-                productName: product.product_name || "Unknown Product"
+                productName,
+                ingredient, // Default (e.g. "Ingredients not found")
+                ...aiResult // AI result overrides 'ingredient' if it found one
             };
         } else {
             console.log("Product not found in Open Food Facts");
@@ -81,4 +96,13 @@ export const lookupProduct = async (barcodeData) => {
         console.error("API Lookup Error:", error);
         return null;
     }
+};
+
+export const analyzeImage = async (imageUri) => {
+    // Placeholder for image-based analysis (OCR) if implemented later
+    return {
+        status: 'MODERATE',
+        ingredient: 'Image Analysis Not Implemented',
+        reason: 'This feature is coming soon.'
+    };
 };

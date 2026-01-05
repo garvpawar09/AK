@@ -1,0 +1,19 @@
+--- Testing Missing Ingredients Fallback ---
+Analyzing product: Coca-Cola Zero Sugar
+Analyzing with Model: gemini-2.5-flash-lite (v2)
+Ingredients missing. Strategy: Search Grounding -> Internal Knowledge
+Attempting Gemini with Search Tools...
+makeRequest called. useTools: true
+Fetching from URL...
+ERROR_LOG: (node:16072) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/amaan/Desktop/New%20folder/AK/services/aiService.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\amaan\Desktop\New folder\AK\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Response received. Status: 200
+Data parsed.
+
+--- Result ---
+Status: YES
+Reason: Coca-Cola Zero Sugar is suitable for vegans as it does not contain any animal-derived ingredients.
+Ingredients Found/Estimated: YES
+Ingredient Text: Carbonated Water, Colour (E150d), Acid (Phosphoric Acid), Sweeteners (Aspartame, Acesulfame-K, Enzymatically Produced Steviol Glycosides), Natural Flavourings, Caffeine Flavouring, Acidity Regulator (Sodium Citrates). Contains a Source of Phenylalanine. (Note: Specific ingredients may vary slightly by region, but generally align with this list.)
