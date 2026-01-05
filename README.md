@@ -29,10 +29,36 @@ Consumers struggle to make informed health decisions because food labels are des
 
 _____________________________________________________________________________________________________
 
-## PROPOSED SOLUTION 
+## PROPOSED SOLUTION
 
+### Instant Product Understanding
+Users scan a product’s barcode, and the app instantly fetches ingredient details from an external source—no manual searching or label reading required.
 
+### Context-Aware AI Reasoning
+The app analyzes ingredients using AI while considering personal factors like dietary preferences or allergies. This allows the system to understand ingredients in context, rather than relying on fixed rules.
 
+### Clear, Simple Decisions
+Instead of raw data, the app provides a straightforward verdict:
+  - YES – Safe and suitable
+  - NO – Not recommended
+  - MODERATE – Acceptable with caution
 
-    
+Each result includes a short explanation so users understand why the decision was made.
+
+### Transparent Explanations
+For users who want more detail, the “Know More” option explains the reasoning behind the verdict, building trust and clarity.
+
+### Technical Approach
+
+The frontend is built using Expo and JavaScript for fast development and cross-platform support.
+The app avoids a traditional backend and uses lightweight, API-based interactions to stay simple and responsive.
+AI-driven reasoning allows the system to scale easily as new products, ingredients, and user needs emerge.
+
+### Impact
+
+The app reduces mental effort, prevents decision fatigue, and helps users make confident food choices in seconds. By combining AI with real-world health needs, it delivers a practical, human-centered solution.
+
+<img width="1024" height="900" alt="ChatGPT Image Jan 5, 2026, 09_39_49 PM" src="https://github.com/user-attachments/assets/86f5240d-394e-45a0-aa9f-b1d5569786e9" />
+
+___________________________________________________________________________________________________________   
     
